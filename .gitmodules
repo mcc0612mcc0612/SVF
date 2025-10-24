@@ -1,0 +1,3 @@
+[submodule "svf-llvm/tools/HarnessGen"]
+	path = svf-llvm/tools/HarnessGen
+	url = https://github.com/mcc0612mcc0612/HarnessSlicing.git
