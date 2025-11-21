@@ -6,7 +6,7 @@ add_subdirectory(MTA)
 add_subdirectory(CFL)
 add_subdirectory(LLVM2SVF)
 add_subdirectory(AE)
-
+add_subdirectory(HarnessGen)
 set(ALL_TOOLS
     ae
     cfl
@@ -18,9 +18,16 @@ set(ALL_TOOLS
     wpa
 )
 
+list(APPEND ALL_TOOLS ${HARNESSGEN_TARGETS})
+
 foreach(_tool IN LISTS ALL_TOOLS)
   # Link the SvfLLVM library against SVF's core & LLVM libraries
-  target_link_libraries(${_tool} PRIVATE SvfCore SvfLLVM)
+  get_target_property(_tool_type ${_tool} TYPE)
+  if(_tool_type STREQUAL "INTERFACE_LIBRARY")
+    target_link_libraries(${_tool} INTERFACE SvfCore SvfLLVM)
+  else()
+    target_link_libraries(${_tool} PRIVATE SvfCore SvfLLVM)
+  endif()
 
   # Ensure that the build artifacts are placed into lib/bin/include relative to the top of the build directory
   set_target_properties(
