@@ -125,7 +125,8 @@ void SVFG::writeToFile(const string& filename)
                 if(LOADMU* mu = SVFUtil::dyn_cast<LOADMU>(*it))
                 {
                     NodeID def = getDef(mu->getMRVer());
-                    f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << def << " >= LoadNode | MVER: {" << *mu->getMRVer() << "}" << "\n";
+                    const SVFGNode* dstNode = getSVFGNode(def);
+                    f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << loadNode->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << def << " ICFGID: " << dstNode->getICFGNode()->getId() << " >= LoadNode | MVER: {" << *mu->getMRVer() << "}" << "\n";
                 }
             }
         }
@@ -137,7 +138,8 @@ void SVFG::writeToFile(const string& filename)
                 if(STORECHI* chi = SVFUtil::dyn_cast<STORECHI>(*it))
                 {
                     NodeID def = getDef(chi->getOpVer());
-                    f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << def << " >= StoreNode | MVER: {" << *chi->getOpVer() << "}" << "\n";
+                    const SVFGNode* dstNode = getSVFGNode(def);
+                    f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << storeNode->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << def << " ICFGID: " << dstNode->getICFGNode()->getId() << " >= StoreNode | MVER: {" << *chi->getOpVer() << "}" << "\n";
                 }
             }
         }
@@ -154,7 +156,7 @@ void SVFG::writeToFile(const string& filename)
                 for(ActualINSVFGNodeSet::iterator ait = actualIns.begin(), aeit = actualIns.end(); ait!=aeit; ++ait)
                 {
                     const ActualINSVFGNode* actualIn = SVFUtil::cast<ActualINSVFGNode>(getSVFGNode(*ait));
-                    f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << actualIn->getId() << " >= FormalINSVFGNode" << "\n";
+                    f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << formalIn->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << actualIn->getId() << " ICFGID: " << actualIn->getICFGNode()->getId() << " >= FormalINSVFGNode" << "\n";
                 }
             }
         }
@@ -171,16 +173,18 @@ void SVFG::writeToFile(const string& filename)
                 for(ActualOUTSVFGNodeSet::iterator ait = actualOuts.begin(), aeit = actualOuts.end(); ait!=aeit; ++ait)
                 {
                     const ActualOUTSVFGNode* actualOut = SVFUtil::cast<ActualOUTSVFGNode>(getSVFGNode(*ait));
-                    f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << actualOut->getId() << " >= FormalOUTSVFGNode" << "\n";
+                    f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << formalOut->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << actualOut->getId() << " ICFGID: " << actualOut->getICFGNode()->getId() << " >= FormalOUTSVFGNode" << "\n";
                 }
             }
             NodeID def = getDef(formalOut->getMRVer());
-            f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << def << " >= FormalOUTSVFGNode | intra" << "\n";
+            const SVFGNode* dstNode = getSVFGNode(def);
+            f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << formalOut->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << def << " ICFGID: " << dstNode->getICFGNode()->getId() << " >= FormalOUTSVFGNode | intra" << "\n";
         }
         else if(const ActualINSVFGNode* actualIn = SVFUtil::dyn_cast<ActualINSVFGNode>(node))
         {
             NodeID def = getDef(actualIn->getMRVer());
-            f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << def << " >= ActualINSVFGNode" << "\n";
+            const SVFGNode* dstNode = getSVFGNode(def);
+            f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << actualIn->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << def << " ICFGID: " << dstNode->getICFGNode()->getId() << " >= ActualINSVFGNode" << "\n";
 
         }
         else if(const MSSAPHISVFGNode* phiNode = SVFUtil::dyn_cast<MSSAPHISVFGNode>(node))
@@ -190,7 +194,8 @@ void SVFG::writeToFile(const string& filename)
             {
                 const MRVer* op = it->second;
                 NodeID def = getDef(op);
-                f << "srcSVFGNodeID: " << nodeId << " => " << "dstSVFGNodeID: " << def << " >= PHISVFGNode | MVER: {" << *op << "}" << "\n";
+                const SVFGNode* dstNode = getSVFGNode(def);
+                f << "srcSVFGNodeID: " << nodeId << " ICFGID: " << phiNode->getICFGNode()->getId() << " => " << "dstSVFGNodeID: " << def << " ICFGID: " << dstNode->getICFGNode()->getId() << " >= PHISVFGNode | MVER: {" << *op << "}" << "\n";
             }
         }
     }
@@ -355,7 +360,7 @@ void SVFG::readFile(const string& filename)
         std::string delimiter = " >= ";
         string temp;
         // int index = 0;
-        size_t last = 0;
+        // size_t last = 0;
         size_t next = 0; // size_t outer_last = 0;
         string edge;
         string attributes;
@@ -368,11 +373,14 @@ void SVFG::readFile(const string& filename)
         // extract nodeIDs for src and dst nodes
         NodeID src;
         NodeID dst;
-        next = edge.find("srcSVFGNodeID: ") + 15;
-        last = edge.find(" => ");
-        src = atoi(edge.substr(next, last-next).c_str());
-        next = edge.find("dstSVFGNodeID: ") + 15;
-        dst = atoi(edge.substr(next).c_str());
+
+        size_t srcIdStart = edge.find("srcSVFGNodeID: ") + 15;
+        size_t srcIcfgStart = edge.find(" ICFGID: ", srcIdStart);
+        src = atoi(edge.substr(srcIdStart, srcIcfgStart - srcIdStart).c_str());
+
+        size_t dstIdStart = edge.find("dstSVFGNodeID: ", srcIcfgStart) + 15;
+        size_t dstIcfgStart = edge.find(" ICFGID: ", dstIdStart);
+        dst = atoi(edge.substr(dstIdStart, dstIcfgStart - dstIdStart).c_str());
 
         string type;
         string attribute;
