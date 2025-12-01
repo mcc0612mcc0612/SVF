@@ -347,6 +347,9 @@ bool isHeapAllocExtCallViaRet(const CallICFGNode* cs);
 
 bool isHeapAllocExtCall(const ICFGNode* cs);
 
+/// Return true if a callsite targets a declaration (no body/definition)
+bool isDeclCall(const ICFGNode* node);
+
 //@}
 
 u32_t getHeapAllocHoldingArgPosition(const CallICFGNode* cs);

@@ -609,7 +609,9 @@ void MemSSA::dumpMSSA(OutStream& Out)
             bool last_is_chi = false;
             for (const auto& inst: bb->getICFGNodeList())
             {
-                bool isAppCall = isNonInstricCallSite(inst) && !isExtCall(inst);
+                // Dump unknown/decl-only callees as well so their MU/CHI show up for debugging.
+                bool isAppCall = isNonInstricCallSite(inst) &&
+                        (!isExtCall(inst) || SVFUtil::isDeclCall(inst));
                 if (isAppCall || isHeapAllocExtCall(inst))
                 {
                     const CallICFGNode* cs = cast<CallICFGNode>(inst);

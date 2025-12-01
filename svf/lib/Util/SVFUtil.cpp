@@ -354,6 +354,15 @@ bool SVFUtil::isExtCall(const ICFGNode* node)
     return isExtCall(cast<CallICFGNode>(node)->getCalledFunction());
 }
 
+bool SVFUtil::isDeclCall(const ICFGNode* node)
+{
+    if(!isCallSite(node)) return false;
+    const CallICFGNode* cs = cast<CallICFGNode>(node);
+    if(const FunObjVar* callee = cs->getCalledFunction())
+        return callee->isDeclaration();
+    return false;
+}
+
 bool SVFUtil::isHeapAllocExtCall(const ICFGNode* cs)
 {
     if(!isCallSite(cs)) return false;
