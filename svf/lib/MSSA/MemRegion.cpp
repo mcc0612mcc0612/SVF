@@ -118,6 +118,27 @@ void MRGenerator::collectGlobals()
 }
 
 /*!
+ * Lazily collect all objects (base and their fields after collapse)
+ */
+NodeBS& MRGenerator::collectAllObjs()
+{
+    if(!allObjs.empty())
+        return allObjs;
+
+    SVFIR* pag = pta->getPAG();
+    for (SVFIR::iterator nIter = pag->begin(); nIter != pag->end(); ++nIter)
+    {
+        if(ObjVar* obj = SVFUtil::dyn_cast<ObjVar>(nIter->second))
+        {
+            const BaseObjVar* base = pag->getBaseObject(obj->getId());
+            allObjs.set(base->getId());
+            allObjs |= pag->getFieldsAfterCollapse(base->getId());
+        }
+    }
+    return allObjs;
+}
+
+/*!
  * Generate memory regions according to pointer analysis results
  * Attach regions on loads/stores
  */
@@ -630,6 +651,11 @@ bool MRGenerator::isNonLocalObject(NodeID id, const FunObjVar* curFun) const
                 mod.set(addr->getRHSVarID());
         }
     }
+    /// if the callee has no body/definition, conservatively treat it as mod/ref of all reachable args
+    else if(!hasDefinition(callee))
+    {
+        getModRefForUndefCallee(mod, ref, cs);
+    }
     /// otherwise, we find the mod/ref sets from the callee function, who has definition and been processed
     else
     {
@@ -777,6 +803,19 @@ ModRefInfo MRGenerator::getModRefInfo(const CallICFGNode* cs, const SVFVar* V)
         return ModRefInfo::Mod;
     else
         return ModRefInfo::NoModRef;
+}
+
+bool MRGenerator::hasDefinition(const FunObjVar* fun) const
+{
+    return fun && !fun->isDeclaration();
+}
+
+void MRGenerator::getModRefForUndefCallee(NodeBS& mod, NodeBS& ref, const CallICFGNode* cs)
+{
+    // Unknown bodies may read/write anything reachable from their pointer arguments.
+    const NodeBS& argPts = getCallSiteArgsPts(cs);
+    mod |= argPts;
+    ref |= argPts;
 }
 
 /*!

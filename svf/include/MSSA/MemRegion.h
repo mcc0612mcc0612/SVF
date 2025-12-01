@@ -241,6 +241,8 @@ private:
 
     /// All global variable SVFIR node ids
     NodeBS allGlobals;
+    /// All objects in the program (cached)
+    NodeBS allObjs;
 
     /// Clean up memory
     void destroy();
@@ -282,6 +284,8 @@ protected:
 
     /// Collect all global variables for later escape analysis
     void collectGlobals();
+    /// Collect all objects (lazy)
+    NodeBS& collectAllObjs();
 
     /// Generate regions for loads/stores
     virtual void collectModRefForLoadStore();
@@ -332,6 +336,10 @@ protected:
 
     /// Get Mod-Ref of a callee function
     virtual bool handleCallsiteModRef(NodeBS& mod, NodeBS& ref, const CallICFGNode* cs, const FunObjVar* fun);
+    /// Whether we have a body for the callee
+    virtual bool hasDefinition(const FunObjVar* fun) const;
+    /// Conservative mod/ref for undefined callees
+    virtual void getModRefForUndefCallee(NodeBS& mod, NodeBS& ref, const CallICFGNode* cs);
 
 
     /// Add cpts to store/load
