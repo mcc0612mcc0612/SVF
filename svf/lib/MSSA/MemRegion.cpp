@@ -197,6 +197,36 @@ void MRGenerator::collectModRefForLoadStore()
                     if (const StoreStmt *st = SVFUtil::dyn_cast<StoreStmt>(inst))
                     {
                         NodeBS cpts(pta->getPts(st->getLHSVarID()).toNodeBS());
+
+                        // New logic (1): Add base objects for any field objects in cpts
+                        // Store Field -> Defs Field AND Base 
+                        for (NodeBS::iterator it = cpts.begin(), eit = cpts.end(); it != eit; ++it)
+                        {
+                            SVFVar* node = PAG::getPAG()->getGNode(*it);
+                            if (GepObjVar* gep = SVFUtil::dyn_cast<GepObjVar>(node))
+                            {
+                                cpts.set(gep->getBaseObj()->getId());
+                            }
+                        }
+
+                        // New logic (2): Add all fields if the current target is a base object
+                        // Store Base -> Defs Base AND All Fields 
+                        NodeBS fieldsToAdd;
+                        for (NodeBS::iterator it = cpts.begin(), eit = cpts.end(); it != eit; ++it)
+                        {
+                            SVFVar* node = PAG::getPAG()->getGNode(*it);
+                            // Check if it's a base object (not a field object itself)
+                            if (BaseObjVar* base = SVFUtil::dyn_cast<BaseObjVar>(node))
+                            {
+                                // Ensure it's not a GepObjVar to avoid redundancy, and not a special object
+                                if (!SVFUtil::isa<GepObjVar>(node) && !SVFUtil::isa<DummyObjVar, BlackHoleValVar>(base)) {
+                                     // Get all fields of this base object
+                                     fieldsToAdd |= PAG::getPAG()->getAllFieldsObjVars(base->getId());
+                                }
+                            }
+                        }
+                        cpts |= fieldsToAdd; // Add all collected field IDs to the cpts
+
                         // TODO: change this assertion check later when we have conditional points-to set
                         if (cpts.empty())
                             continue;
@@ -586,7 +616,7 @@ bool MRGenerator::isNonLocalObject(NodeID id, const FunObjVar* curFun) const
 /*!
  * Get Mod-Ref of a callee function
  */
-bool MRGenerator::handleCallsiteModRef(NodeBS& mod, NodeBS& ref, const CallICFGNode* cs, const FunObjVar* callee)
+ bool MRGenerator::handleCallsiteModRef(NodeBS& mod, NodeBS& ref, const CallICFGNode* cs, const FunObjVar* callee)
 {
     /// if a callee is a heap allocator function, then its mod set of this callsite is the heap object.
     if(isHeapAllocExtCall(cs))
