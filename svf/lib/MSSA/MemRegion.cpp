@@ -651,8 +651,8 @@ bool MRGenerator::isNonLocalObject(NodeID id, const FunObjVar* curFun) const
                 mod.set(addr->getRHSVarID());
         }
     }
-    /// if the callee has no body/definition, conservatively treat it as mod/ref of all reachable args
-    else if(!hasDefinition(callee))
+    /// if the callee has no body/definition or is a vararg function, conservatively treat it as mod/ref of all reachable args
+    else if(!hasDefinition(callee) || callee->isVarArg())
     {
         getModRefForUndefCallee(mod, ref, cs);
     }
